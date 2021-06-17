@@ -1,0 +1,3 @@
+class Cargo:
+    descripcion = ""
+    nombre = ""
