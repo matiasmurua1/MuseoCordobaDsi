@@ -38,7 +38,7 @@ class Cargo(models.Model):
         (GUIA, "Guia"),
     ]
 
-    nombre = models.CharField(u"Nombre", choices=NOMBRE_CHOICES, max_length=2)
+    nombre = models.CharField(u"Nombre", choices=NOMBRE_CHOICES, max_length=2, unique=True)
 
     def esGuia(self):
         return self.nombre == self.GUIA
@@ -70,7 +70,7 @@ class DiaSemana(models.Model):
         (SABADO, "Sabado"),
         (DOMINGO, "Domingo"),
     ]
-    nombre = models.CharField(u"Nombre", choices=NOMBRE_CHOICES, max_length=3)
+    nombre = models.CharField(u"Nombre", choices=NOMBRE_CHOICES, max_length=3, unique=True)
     """Se define el parametro chocies para limitar que se creen objetos solo
     dentro de un rango de opciones posibles.
     Como el atributo es de tipo string se define el parametro max_length=largo maximo"""
