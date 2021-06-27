@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Escuela, TipoVista, Estado, CambioEstado, ReservaVisita, AsigacionVisita
+from .models import Escuela, TipoVisita, Estado, CambioEstado, ReservaVisita, AsignacionVisita
+
 
 admin.site.register(Escuela)
 admin.site.register(TipoVisita)
