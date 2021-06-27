@@ -26,12 +26,17 @@
   {% load i18n %}
   <body>
     <nav class="navbar navbar-expand-md navbar-dark" style="background-color: #000;z-index:1050">
-      <a class="navbar-brand" href="{% url 'visita:index' %}">Museo</a>
-      <button class="navbar-toggler border-0" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
-        <span><i class="fas fa-bars text-primary"></i></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNavDropdown">
-        <div class="navbar-nav ml-auto">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'visita:index' %}">Museo</a>
+        <button class="navbar-toggler border-0" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+          <span><i class="fas fa-bars text-primary"></i></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavDropdown">
+          <ul class="navbar-nav ms-auto mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'visita:logout' %}">Logout</a>
+            </li>
+          </ul>
         </div>
       </div>
     </nav>
