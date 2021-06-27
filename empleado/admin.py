@@ -1,3 +1,8 @@
 from django.contrib import admin
+from .models import Empleado, HorarioEmpleado, DiaSemana, Cargo
 
-# Register your models here.
+
+admin.site.register(Cargo)
+admin.site.register(DiaSemana)
+admin.site.register(Empleado)
+admin.site.register(HorarioEmpleado)
