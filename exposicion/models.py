@@ -60,4 +60,8 @@ class DetalleExposicion(models.Model):
         pass
 
 class Obra(models.Model):
+    nombreOrba = models.CharField(u"Nombre", max_length=125)
     duracionExtendida = models.PositiveIntegerField(u"Duracion extendida", help_text="Duracion en minutos")
+
+    def __str__(self):
+        return self.nombreOrba
