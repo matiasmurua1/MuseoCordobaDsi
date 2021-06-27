@@ -42,6 +42,9 @@ class Cargo(models.Model):
 
     def esGuia(self):
         return self.nombre == self.GUIA
+    
+    def __str__(self):
+        return self.get_nombre_display()
 
 class HorarioEmpleado(models.Model):
     horaIngreso = models.TimeField(u"Hora de ingreso")
@@ -74,6 +77,9 @@ class DiaSemana(models.Model):
     """Se define el parametro chocies para limitar que se creen objetos solo
     dentro de un rango de opciones posibles.
     Como el atributo es de tipo string se define el parametro max_length=largo maximo"""
+
+    def __str__(self):
+        return self.get_nombre_display()
 
     def esDia(self):
         pass
