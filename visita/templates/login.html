@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+<style>
+    html, body {
+        height: 100%;
+        min-height: 100%;
+    }
+    .navbar {
+        display:none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container h-100">
+    <div class="row h-100 align-items-center">
+        <div class="col-sm-9 col-md-7 col-lg-5 mx-auto">
+            <div class="card card-signin my-5">
+                <div class="card-body">
+                    <h4 class="text-center mb-3">Login</h4>
+                    {% if form.non_field_errors %}
+                    {% for error in form.non_field_errors %}
+                    <span class="text-danger">
+                        {{ error }}
+                    </span>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if user.is_authenticated %}
+                    <span class="text-danger fw-light small d-block mb-3">
+                    {% blocktrans trimmed %}
+                        You are authenticated as {{ username }}, but are not authorized to
+                        access this page. Would you like to login to a different account?
+                    {% endblocktrans %}
+                    </span>
+                    {% endif %}
+
+                    <form class="form-signin" action="{{ app_path }}" method="post", id="login-form">
+                        {% csrf_token %}
+                        <div class="form-floating mb-3">
+                            {{ form.username }}
+                            {{ form.username.label_tag }}
+                            <div class="invalid-feedback">
+                                {{ form.username.errors }}
+                            </div>
+                        </div>
+                        <div class="form-floating">
+                            {{ form.password }}
+                            {{ form.password.label_tag }}
+                            <div class="invalid-feedback">
+                                {{ form.password.errors }}
+                            </div>
+                            <input type="hidden" name="next" value="{% if next %}{{ next }}{% else %}/{% endif %}">
+                        </div>
+                        <div class="row justify-content-center mb-2">
+                            <button type="submit" class="btn btn-primary col-8 rounded-pill py-2 mt-4 text-capitalize"> {% trans 'sign in' %}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $("input").addClass("form-control");
+    {% for field in form.visible_fields %}
+    $("#id_{{field.name}}").attr("placeholder","{{field.label}}")
+    {% endfor %}
+</script>
+{% endblock %}
