@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+
+{% block extrastyle %}
+<style>
+    #escuelaCont, #visitantesCont, 
+    #sedeCont, #tipoVisitaCont,
+    #exposicionesCont, #fechaHoraCont,
+    #guiasCont, #guias {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row my-5" id="escuelaCont">
+        <div class="col">
+            <div class="form-floating">
+                <select class="form-select" name="escuela" id="escuela" aria-label="Escuelas">
+                </select>
+                <label for="escuela">Escuela</label>
+              </div>
+        </div>
+    </div>
+    <div class="row my-5" id="visitantesCont">
+        <div class="col">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="visitantes" id="visitantes" placeholder="Cantidad de visitantes">
+                <label for="visitantes">Cantidad de visitantes</label>
+            </div>
+        </div>
+    </div>
+    <div class="row my-5" id="sedeCont">
+        <div class="col">
+            <div class="form-floating">
+                <select class="form-select" name="sede" id="sede" aria-label="Sede"></select>
+                <label for="sede">Sede</label>
+              </div>
+        </div>
+    </div>
+    <div class="row my-5" id="tipoVisitaCont">
+        <div class="col">
+            <div class="form-floating">
+                <select class="form-select" name="tipoVisita" id="tipoVisita" aria-label="Tipo de Visita"></select>
+                <label for="tipoVisita">Tipo de Visita</label>
+              </div>
+        </div>
+    </div>
+
+    <div class="row my-5" id="exposicionesCont">
+        <div class="col">
+            <table class="table" id="listExposiciones">
+                <thead>
+                    <tr>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Publico Destino</th>
+                        <th scope="col">Horarios Habilitados</th>
+                      </tr>
+                </thead>
+                <tbody id="listExposicionesBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="fechaHoraCont">
+        <div class="row g-3 my-5 justify-content-between">
+            <div class="col">
+                <div class="form-floating">
+                    <input type="date" class="form-control" name="fechaReserva" id="fechaReserva" placeholder="Fecha" onfocusout="tomarFechaReserva()">
+                    <label for="fechaReserva">Fecha</label>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-floating">
+                    <input type="time" class="form-control" name="horaReserva" id="horaReserva" placeholder="Hora">
+                    <label for="horaReserva">Hora</label>
+                  </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="guiasCont">
+        <div class="row my-5">
+            <div class="col-6">
+                <span class="fw-bold">Guias necesarios: <span id="cantGuiasNecesarios"></span></span>
+            </div>
+            <div class="col-6">
+                <span class="fw-bold">Duracion estimada de la visita: <span id="lblDuracionEstimada"></span> minutos</span>
+            </div>
+            <div class="col mt-3">
+                <label for="guias">Guias</label>
+                <select class="form-select" multiple aria-label="Guias" name="guias" id="guias">
+                </select>
+                <div class="invalid-feedback">
+                    Por favor, seleccione al menos tantos guias como se indica
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row justify-content-end">
+        <div class="col-12 col-md-4 col-lg-2">
+            <a href="{% url 'visita:index' %}" class="btn btn-outline-primary w-100">Cancelar</a>
+        </div>
+        <div class="col-12 col-md-4 col-lg-2">
+            <button class="btn btn-primary w-100" id="btnNext">Aceptar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" tabindex="-1" id="exposicionesErrorModal" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="exampleModalLabel">Ups, tenemos un problema</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <span>No se han encontrado exposiciones temporales vigentes para la sede seleccionada. Por favor seleccione otra.</span>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" tabindex="-1" id="guiasErrorModal" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="exampleModalLabel">Ups, tenemos un problema</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <span id="guiasModalError"></span>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" tabindex="-1" id="confirmationModal" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" >
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row">
+                    <div class="col">
+                        <span>Esta seguro que desea registrar la reserva?</span>
+                    </div>
+                    </div>
+                    <div class="row g-2 mt-3 justify-content-end">            
+                        <button data-bs-dismiss="modal" class="btn btn-outline-primary mx-2 col-12 col-md-4">Cancelar</button>
+                        <button class="btn btn-primary col-12 col-md-3 mx-2" onClick="registrarVisita()">Aceptar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" tabindex="-1" id="registroVisitaExitoso" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="exampleModalLabel">Reserva de visita guiada registrada</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <span>Se ha registrado exitosamente la reserva.</span>
+            </div>
+            <div class="modal-footer">
+              <a href="{% url 'visita:index' %}" class="btn btn-primary">Volver al inicio</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let todasExposiciones = [];
+    let exposicionesSeleccionadas = [];
+    let guiasSeleccionados = [];
+    let guiasNecesarios;
+
+    var confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'),{})
+    var exposicionesErrorModal = new bootstrap.Modal(document.getElementById('exposicionesErrorModal'),{})
+    var guiasErrorModal = new bootstrap.Modal(document.getElementById('guiasErrorModal'),{})
+    var registroVisitaExitosoModal = new bootstrap.Modal(document.getElementById('registroVisitaExitoso'),{})
+
+    habilitarVentana()
+
+    function habilitarVentana(){
+        $.ajax({
+            type:"GET",
+            dataType : 'json',
+            url: "{% url 'visita:tomarRegReservaVisitaGuiada' %}",
+            success: function(data){
+                mostrarEscuelas(data['escuelas']);
+                solicitarSeleccionEscuela()
+            }
+        })
+    }
+
+    function mostrarEscuelas(escuelas){
+        const first_option = "<option selected>Seleccione una escuela</option>";
+        var options_string = "";
+        escuelas.forEach(nombre_escuela => options_string += `<option value="${nombre_escuela}">${nombre_escuela}</option>`)
+        $("#escuela").html(first_option + options_string)
+    }
+    
+    function solicitarSeleccionEscuela(){
+        $("#escuelaCont").fadeIn(500);
+        $("#btnNext").attr("onClick", "tomarSelecEscuela()")
+    }
+
+    function tomarSelecEscuela(){
+        $.ajax({
+            type:"POST",
+            data: {
+                'csrfmiddlewaretoken': "{{ csrf_token }}",
+                "escuela":$("#escuela").val(),
+            },
+            url: "{% url 'visita:tomarSeleccionEscuela' %}",
+            success: function(data){
+                $("#escuela").attr('onchange', "modifyForm(this)");
+                solicitarCantVisitantes()
+            }
+        })
+    }
+
+    function solicitarCantVisitantes(){
+        $("#visitantesCont").fadeIn(500)
+        $("#btnNext").attr("onClick", "tomarCantidadVisitantes()")
+    }
+
+    function tomarCantidadVisitantes(){
+        $.ajax({
+            type:"POST",
+            data: {
+                'csrfmiddlewaretoken': "{{ csrf_token }}",
+                "cantidadVisitantes":$("#visitantes").val(),
+            },
+            dataType : 'json',
+            url: "{% url 'visita:tomarCantVisitantes' %}",
+            success: function(data){
+                $("#visitantes").attr('onchange', "modifyForm(this)");
+                mostrarSede(data['sedes']);
+                solicitarSeleccionSede()
+            }
+        })
+    }
+
+    function mostrarSede(sedes){
+        const first_option = "<option selected>Seleccione una sede</option>";
+        var options_string = "";
+        sedes.forEach(nombre_sede => options_string += `<option value="${nombre_sede}">${nombre_sede}</option>`)
+        $("#sede").html(first_option + options_string)
+    }
+
+    function solicitarSeleccionSede(){
+        $("#sedeCont").fadeIn(500);
+        $("#btnNext").attr("onClick", "tomarSelecSede()")
+    }
+    
+    function tomarSelecSede(){
+        sedeSeleccionada = $("#sede").val();
+        $.ajax({
+            type:"POST",
+            data: {
+                'csrfmiddlewaretoken': "{{ csrf_token }}",
+                "sede":sedeSeleccionada,
+            },
+            dataType : 'json',
+            url: "{% url 'visita:tomarSeleccionSede' %}",
+            success: function(data){
+                $("#sede").attr('onchange', "modifyForm(this)");
+                mostrarTiposVisita(data['tiposVisita']);
+                pedirSeleccionTipoVisita();
+            }
+        })
+    }
+
+    function mostrarTiposVisita(tiposVisita){
+        const first_option = "<option selected>Seleccione un tipo de visita</option>";
+        var options_string = "";
+        tiposVisita.forEach(({id, nombre}) => options_string += `<option value="${id}">${nombre}</option>`)
+        $("#tipoVisita").html(first_option + options_string)
+    }
+
+    function pedirSeleccionTipoVisita(){
+        $("#tipoVisitaCont").fadeIn(500);
+        $("#btnNext").attr("onClick", "tomarSelecTipoVisita()")
+    }
+
+    function tomarSelecTipoVisita(){
+        tipoVisita = $("#tipoVisita").val()
+        $.ajax({
+            type:"POST",
+            data: {
+                'csrfmiddlewaretoken': "{{ csrf_token }}",
+                'tipoVisita': tipoVisita,
+            },
+            dataType : 'json',
+            url: "{% url 'visita:tomarSeleccionTipoVisita' %}",
+            success: function(data){
+                $("#tipoVisita").attr('onchange', "modifyForm(this)");
+                esTemporal = data["esPorExposicion"] ?? false;
+                esCompleta = data["esCompleta"] ?? false;
+                mostrarDatosExpTempVig(data['exposiciones'], esCompleta);
+                pedirSeleccionExposiciones();
+                if (esCompleta){
+                    tomarSeleccionExposiciones();
+                    return;
+                }
+            }
+        })
+    }
+
+    function mostrarDatosExpTempVig(exposiciones, esCompleta){
+        todasExposiciones = exposiciones;
+        if(esCompleta){
+            exposicionesSeleccionadas = [...todasExposiciones.map(({id}) => id )];
+        }
+        var tableElements = todasExposiciones.map(({
+            id, nombre, publicoDestino, 
+            horarioHabilitado:{horaApertura, horaCierre}
+        }) => {
+            return `<tr ${ esCompleta ? "" : `onClick="tomarSelecExposicion(this, ${id}) "`}>
+                <th scope="row">${nombre}</th>
+                <td>${publicoDestino}</td>
+                <td>${horaApertura} - ${horaCierre}</td>
+            </tr>`; 
+        });
+        $("#listExposicionesBody").html(tableElements);
+    }
+
+    function pedirSeleccionExposiciones(){
+        if (todasExposiciones.length == 0){
+            exposicionesErrorModal.show();
+            return;
+        }
+        $("#exposicionesCont").fadeIn(500);
+        $("#btnNext").attr("onClick", "tomarSeleccionExposiciones()")
+    }
+
+    function tomarSelecExposicion(clickedElement, selected_id){
+        const clickedRow = $(clickedElement);
+        if (exposicionesSeleccionadas.find(id => id == selected_id) != undefined){
+            exposicionesSeleccionadas = exposicionesSeleccionadas.filter(id => id != selected_id);
+            clickedRow.removeClass("table-active");
+            return
+        }
+        exposicionesSeleccionadas.push(todasExposiciones.find(({id}) => id == selected_id)["id"]);
+        clickedRow.addClass("table-active");
+    }
+
+    function tomarSeleccionExposiciones(){
+        $("#listExposicionesBody").attr('onclick', "modifyForm(this)");
+        if (exposicionesSeleccionadas.length==0){
+            $("#guiasModalError").html("Seleccione al menos una exposicion antes de continuar")
+            guiasErrorModal.show();
+        }
+        solicitarFechaHoraReserva()
+    }
+
+    function solicitarFechaHoraReserva(){
+        $("#fechaHoraCont").fadeIn(500);
+        $("#btnNext").attr("onClick", "tomarHoraReserva()");
+    }
+
+    function tomarFechaReserva(){
+        var dateRegex = new RegExp("(?:19|20)[0-9]{2}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:(?!02)(?:0[1-9]|1[0-2])-(?:30))|(?:(?:0[13578]|1[02])-31))");
+        const dateString = $("#fechaReserva").val();
+        $("#fechaReserva").addClass((dateRegex.test(dateString) ? "is-valid" : "is-invalid" ))
+        $("#fechaReserva").removeClass((dateRegex.test(dateString) ? "is-invalid" : "is-valid" ))
+    }
+
+    function tomarHoraReserva(){
+        $.ajax({
+            type:"POST",
+            data: {
+                'csrfmiddlewaretoken': "{{ csrf_token }}",
+                'exposicionesSeleccionadas': exposicionesSeleccionadas,
+                'fechaReserva': $("#fechaReserva").val(),
+                'horaReserva': $("#horaReserva").val(),
+            },
+            dataType : 'json',
+            url: "{% url 'visita:tomarFechaHoraReserva' %}",
+            statusCode: {
+                403: function() {
+                    $("#guiasModalError").html("La cantidad de visitantes ingresada supera el limite para la sede seleccionda")
+                    $("#visitantes").addClass("is-invalid")
+                    guiasErrorModal.show();
+                }
+            },
+            success: function(data){
+                $("#fechaReserva").attr('onchange', "modifyForm(this)");
+                $("#horaReserva").attr('onchange', "modifyForm(this)");
+                $("#visitantes").removeClass("is-invalid")
+
+                guiasNecesarios = data["necesarios"];
+                mostrarCantidadGuiasNecesarios(guiasNecesarios, data["duracion"]);
+                mostrarGuiasDisponibles(data["guias"]);
+                solicitarSeleccionGuias(data["guias"]);
+            }
+        })
+    }
+
+    function mostrarCantidadGuiasNecesarios(cantidadGuias, duracionEstimada){
+        $("#cantGuiasNecesarios").html(cantidadGuias);
+        $("#lblDuracionEstimada").html(duracionEstimada);
+        $("#guiasCont").fadeIn(500);
+
+    }
+
+    function mostrarGuiasDisponibles(guias){
+        guiasOptions = guias.map(({id, nombre}) =>
+            `<option value="${id}">${nombre}</option>`)
+        $("#guias").html(guiasOptions);
+        $("#guias").fadeIn(500);
+    }
+
+    function solicitarSeleccionGuias(guias){
+        if (guiasNecesarios > guias.length){
+            $("#guiasModalError").html("No se ha encontrado suficiente cantidad de guias disponibles para satisfacer la reserva. \nPor favor, escoja otra fecha y horario, o cambie la sede que desea visitar.")
+            guiasErrorModal.show();
+            return
+        }
+        $("#btnNext").attr("onClick", "tomarSeleccionGuia()");
+    }
+
+    function tomarSeleccionGuia(){
+        if (guiasNecesarios > $("#guias").val().length){
+            $("#guias").addClass("is-invalid");
+            return;
+        }
+        $("#guias").addClass("is-valid");
+        $.ajax({
+            type:"POST",
+            data: {
+                'csrfmiddlewaretoken': "{{ csrf_token }}",
+                'guias': $("#guias").val(),
+            },
+            url: "{% url 'visita:tomarGuias' %}",
+            success: function(data){
+                $("#guias").attr('onchange', "modifyForm(this)");
+                pedirConfirmacionRegistro()
+            }
+        })
+    }
+
+    function pedirConfirmacionRegistro(){
+        confirmationModal.show()
+    }
+
+    function registrarVisita(){
+        confirmationModal.hide();
+        $.ajax({
+            type:"POST",
+            data: {
+                'csrfmiddlewaretoken': "{{ csrf_token }}",
+            },
+            url: "{% url 'visita:registrarVisita' %}",
+            success: function(data){
+                registroVisitaExitosoModal.show();
+            }
+        })
+    }
+
+    function modifyForm(changedElement){
+        $changedObject = $(changedElement);
+        changedId = $changedObject.attr("id");
+        switch (changedId){
+            case "escuela":
+                ignoreIds = ["escuelaCont", "visitantesCont"] 
+                $( "[id$='Cont']" ).each(function( index, element ) {
+                    $element = $( element );
+                    if(!ignoreIds.includes($element.attr("id"))){
+                        $element.fadeOut();
+                    }
+                });
+                tomarSelecEscuela();
+                break;
+            case "visitantes":
+                ignoreIds = ["escuelaCont", "visitantesCont", "sedeCont"] 
+                $( "[id$='Cont']" ).each(function( index, element ) {
+                    $element = $( element );
+                    if(!ignoreIds.includes($element.attr("id"))){
+                        $element.fadeOut();
+                    }
+                });
+                tomarCantidadVisitantes();
+                break;
+            case "sede":
+                ignoreIds = ["escuelaCont", "visitantesCont", "sedeCont", "tipoVisitaCont"] 
+                $( "[id$='Cont']" ).each(function( index, element ) {
+                    $element = $( element );
+                    if(!ignoreIds.includes($element.attr("id"))){
+                        $element.fadeOut();
+                    }
+                });
+                tomarSelecSede();
+                break;
+            case "tipoVisita":
+                ignoreIds = ["escuelaCont", "visitantesCont", "sedeCont", "tipoVisitaCont", "exposicionesCont"] 
+                $( "[id$='Cont']" ).each(function( index, element ) {
+                    $element = $( element );
+                    if(!ignoreIds.includes($element.attr("id"))){
+                        $element.fadeOut();
+                    }
+                });
+                tomarSelecTipoVisita();
+                break;
+            case "listExposicionesBody":
+                ignoreIds = ["escuelaCont", "visitantesCont", "sedeCont", "tipoVisitaCont", "exposicionesCont"] 
+                $( "[id$='Cont']" ).each(function( index, element ) {
+                    $element = $( element );
+                    if(!ignoreIds.includes($element.attr("id"))){
+                        $element.fadeOut();
+                    }
+                });
+                tomarSeleccionExposiciones()
+                break;
+            case "fechaReserva":
+            case "horaReserva":
+                ignoreIds = ["escuelaCont", "visitantesCont", "sedeCont", "tipoVisitaCont", "fechaHoraCont","exposicionesCont", "guiasCont"] 
+                $( "[id$='Cont']" ).each(function( index, element ) {
+                    $element = $( element );
+                    if(!ignoreIds.includes($element.attr("id"))){
+                        $element.fadeOut();
+                    }
+                });
+                tomarHoraReserva();
+                break;
+            case "guias":
+                tomarSeleccionGuia();
+                break;
+        }
+
+    }
+
+    document.getElementById("registroVisitaExitoso").addEventListener('hide.bs.modal', function (event) {
+        window.location.href = '{% url "visita:index" %}'
+    })
+</script>
+{% endblock %}

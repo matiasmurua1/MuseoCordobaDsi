@@ -32,10 +32,25 @@ class Empleado(models.Model):
     Se cambia la punta de flecha del diagrama para poder aprovechar todas las funcionalidades
     de autenticacion y de sesion que vienen por defecto con django"""
 
+    sede = models.ForeignKey("exposicion.Sede", on_delete=models.PROTECT, related_name="empleado")
+    nombre = models.CharField(u"Nombre", max_length=128)
+
+    def getGuiaDispEnHorario(self, fechaHoraDesde, fechaHoraHasta):
+        if self.cargo.esGuia():
+            for horario in self.horarioEmpleado.all():
+                if horario.dispEnFechaHoraReserva(fechaHoraDesde, fechaHoraHasta):
+                    for asignacion in self.asignacionVisita.all():
+                        if asignacion.esAsignacionParaFechaHora(fechaHoraDesde, fechaHoraHasta):
+                            return None
+                    return {"id":self.pk, "nombre":self.nombre}
+        return None
+
 class Cargo(models.Model):
     GUIA = "Gu"
+    RESPONSABLE_VISITAS = "RV"
     NOMBRE_CHOICES = [
         (GUIA, "Guia"),
+        (RESPONSABLE_VISITAS, "Responsable de visitas"),
     ]
 
     nombre = models.CharField(u"Nombre", choices=NOMBRE_CHOICES, max_length=2, unique=True)
@@ -52,18 +67,27 @@ class HorarioEmpleado(models.Model):
     horaSalida = models.TimeField(u"Hora de salida")
     diaSemana = models.ManyToManyField("DiaSemana")
 
-    def dispEnFechaHoraReserva(self):
+    def dispEnFechaHoraReserva(self, fechaHoraDesde, fechaHoraHasta):
         """Siempre se pone self como atributo porque pertenece a la misma clase"""
-        pass
+        horaDesde = fechaHoraDesde.time()
+        horaHasta = fechaHoraHasta.time()
+        for dia in self.diaSemana.all():
+            if dia.esDia(fechaHoraDesde) and \
+                self.horaIngreso <= horaDesde and \
+                horaDesde < self.horaSalida and \
+                self.horaIngreso < horaHasta and \
+                horaHasta <= self.horaSalida:
+                return True
+        return False
 
 class DiaSemana(models.Model):
-    LUNES = 'Lun'
-    MARTES = 'Mar'
-    MIERCOLES = 'Mie'
-    JUEVES = 'Jue'
-    VIERNES = 'Vie'
-    SABADO = 'Sab'
-    DOMINGO = 'Dom'
+    LUNES = 0
+    MARTES = 1
+    MIERCOLES = 2
+    JUEVES = 3
+    VIERNES = 4
+    SABADO = 5
+    DOMINGO = 6
     NOMBRE_CHOICES = [
         (LUNES, "Lunes"),
         (MARTES, "Martes"),
@@ -73,7 +97,7 @@ class DiaSemana(models.Model):
         (SABADO, "Sabado"),
         (DOMINGO, "Domingo"),
     ]
-    nombre = models.CharField(u"Nombre", choices=NOMBRE_CHOICES, max_length=3, unique=True)
+    nombre = models.PositiveSmallIntegerField(u"Nombre", choices=NOMBRE_CHOICES, primary_key=True)
     """Se define el parametro chocies para limitar que se creen objetos solo
     dentro de un rango de opciones posibles.
     Como el atributo es de tipo string se define el parametro max_length=largo maximo"""
@@ -81,5 +105,5 @@ class DiaSemana(models.Model):
     def __str__(self):
         return self.get_nombre_display()
 
-    def esDia(self):
-        pass
+    def esDia(self, date):
+        return date.weekday() == self.nombre

@@ -1,0 +1,210 @@
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.generic.base import TemplateView
+from django.contrib.auth.decorators import login_required
+from django.utils.dateparse import parse_datetime
+from django.utils.timezone import timedelta, datetime
+
+from exposicion.models import Sede
+from empleado.models import Empleado
+from .models import Escuela, TipoVisita
+
+# Create your views here.
+@login_required(login_url="/login/")
+def index(request):
+    return render(request, "index.html")
+
+@login_required(login_url="/login/")
+def registrarReservaVisitaGuiada(request):
+    return render(request, "PantallaRegReservaVisitaGuiada.html")
+
+class GestorRegReservaVisitaGuiada(TemplateView):
+    template_name = "PantallaRegReservaVisitaGuiada.html"
+
+    @staticmethod
+    def tomarRegReservaVisitaGuiada(request):
+        return JsonResponse({"escuelas": GestorRegReservaVisitaGuiada.buscarEscuelas()})
+
+    @staticmethod
+    def buscarEscuelas():
+        allEscuelas = []
+        for escuela in Escuela.objects.all():
+            allEscuelas.append(escuela.nombre)
+        return allEscuelas
+    
+    @staticmethod
+    def tomarCantVisitantes(request):
+        return JsonResponse({'sedes': GestorRegReservaVisitaGuiada.buscarSedes()})
+
+    @staticmethod
+    def buscarSedes():
+        sedes = []
+        for sede in Sede.objects.all():
+            sedes.append(sede.nombre)
+        return sedes
+
+    @staticmethod
+    def tomarSeleccionSede(request):
+        return JsonResponse({'tiposVisita': GestorRegReservaVisitaGuiada.buscarTipoVisita()})
+
+    @staticmethod
+    def buscarTipoVisita():
+        tiposVisita = []
+        opciones = [TipoVisita.COMPLETA, TipoVisita.POR_EXPOSICION]
+        for tipoVisita in TipoVisita.objects.filter(nombre__in=opciones):
+            id_tipoVisita, nombre_tipoVisita = tipoVisita.get_nombre()
+            tiposVisita.append({
+                'id': id_tipoVisita, 
+                'nombre':nombre_tipoVisita
+            })
+        return tiposVisita
+    
+    @staticmethod
+    def tomarSeleccionTipoVisita(request):
+        hoy = GestorRegReservaVisitaGuiada.tomarFechaHoraActual()
+        data = request.GET
+        seleccionada = Sede.objects.get(nombre=data['sedeSeleccionada'])
+        if (TipoVisita.POR_EXPOSICION == int(data['tipoVisita'])):
+            exposicionesTempVigentes = seleccionada.buscarExposiciones(hoy.date())
+            return JsonResponse({
+                'esPorExposicion': True, 
+                'exposiciones': exposicionesTempVigentes
+            })
+        if (TipoVisita.COMPLETA == int(data['tipoVisita'])):
+            return JsonResponse({
+                "esCompleta": True,
+            })
+
+    @staticmethod
+    def tomarFechaHoraActual():
+        return datetime.now()
+
+    @staticmethod
+    def tomarFechaHoraReserva(request):
+        data = request.GET
+        seleccionada = Sede.objects.get(nombre=data['sedeSeleccionada'])
+        fechaHoraReserva = parse_datetime(f'{data["fechaReserva"]} {data["horaReserva"]}')
+        duracionExposiciones = GestorRegReservaVisitaGuiada.calcularDuracionExposiciones(
+            seleccionada,
+            data.getlist("exposiciones") ,
+            data['tipoVisita'])
+        
+        fechaHoraReservaHasta = fechaHoraReserva + timedelta(minutes=duracionExposiciones)
+        max_overflow = GestorRegReservaVisitaGuiada.calcularCapMaxSobrepasada(
+            seleccionada,
+            duracionExposiciones,
+            fechaHoraReserva,
+            data["visitantes"])
+            
+        if max_overflow is True:
+            return JsonResponse(
+                {"msg": "Capacidad maxima de visitantes alcanzada"}, 
+                status_code=403)
+            
+        guiasNecesarios = GestorRegReservaVisitaGuiada.calcularCantMaxGuiasNecesarios(
+            seleccionada,
+            data['visitantes']
+        )
+
+        guiasDisponibles = GestorRegReservaVisitaGuiada.buscarGuiasDispFechaReserva(
+            seleccionada,
+            fechaHoraReserva,
+            fechaHoraReservaHasta
+        )
+        
+        return JsonResponse({
+            "guias":guiasDisponibles, 
+            "necesarios":guiasNecesarios,
+            "fechaHoraDesde": fechaHoraReserva,
+            "fechaHoraHasta": fechaHoraReservaHasta,
+            "ducarion": duracionExposiciones
+            })
+    
+    @staticmethod
+    def calcularDuracionExposiciones(sede, exposiciones, tipoVisita):
+        return sede.buscarDuracionExposiciones(
+            exposiciones, 
+            completa=(int(tipoVisita) == TipoVisita.COMPLETA), 
+            porExposicion=(int(tipoVisita) == TipoVisita.POR_EXPOSICION))
+    
+    @staticmethod
+    def calcularCapMaxSobrepasada(sede, fechaHoraReserva, fechaHoraReservaHasta, visitantes):
+        visitantesEnMuseo = sede.buscarResParaFechaHora(
+            fechaHoraReserva, 
+            fechaHoraReservaHasta)
+        cantidadMaxima = sede.cantMaximaVisita
+        return visitantesEnMuseo + int(visitantes) > cantidadMaxima
+
+    @staticmethod
+    def calcularCantMaxGuiasNecesarios(sede, visitantes):
+        return int(visitantes) // sede.cantMaximaPorGuia
+    
+    @staticmethod
+    def buscarGuiasDispFechaReserva(sede, fechaHoraReserva, fechaHoraReservaHasta):
+        guias = []
+        for empleado in Empleado.objects.filter(sede=sede):
+            guia = empleado.getGuiaDispEnHorario()
+            if guia is not None:
+                guias.append(guia)
+        return guias
+    
+    @staticmethod
+    def registrarVisita(request):
+        data = request.POST
+        seleccionada = Sede.objects.get(nombre=data['sedeSeleccionada'])
+        empleado = GestorRegReservaVisitaGuiada.buscarEmpleadoLogueado(request)
+        estadoInicial = GestorRegReservaVisitaGuiada.buscarEstadoReserva()
+        
+        if estadoInicial is None:
+            return JsonResponse({"msg":"No existe el estado incial"}, status=404)
+    
+        ultimoNumeroReserva = GestorRegReservaVisitaGuiada.getUltimoNumeroReserva()
+            
+        GestorRegReservaVisitaGuiada.registrarReserva(
+            int(data["visitantes"]),
+            int(data['duracionEstimada']),
+            int(data['fechaHoraReserva']),
+            ultimoNumeroReserva + 1,
+            data.getlist('exposicion'),
+            seleccionada,
+            estado,
+            data.getlist("guias"),
+            data['fechaHoraFin'])
+        return JsonResponse({"msg":"Exito"})
+    
+    @staticmethod
+    def getUltimoNumeroReserva():
+        ultimoNumeroReserva = ReservaVisita.objects.all().order_by('numeroReserva').last().numeroReserva
+        if ultimoNumeroReserva is None:
+            ultimoNumeroReserva = 0
+        return ultimoNumeroReserva
+
+    @staticmethod
+    def buscarUltimoNumeroReserva():
+        return ReservaVisita.getNumeroReserva()
+    
+    @staticmethod
+    def buscarEmpleadoLogueado(request):
+        return request.user.empleado
+    
+    @staticmethod
+    def buscarEstadoReserva():
+        for estado in Estado.objects.all():
+            if estado.esAmbitoReserva() and estado.esPendienteDeConfirmacion():
+                return estado
+        return None
+
+    @staticmethod
+    def registrarReserva(
+        cantidadAlumnos,
+        duracionEstimada,
+        fechaHoraReserva,
+        numeroReserva,
+        exposicion,
+        sede,
+        estado,
+        guiaAsignado,
+        fechaHorafin,
+        fechaHoraCreacion=datetime.now()
+    ):
+        pass
